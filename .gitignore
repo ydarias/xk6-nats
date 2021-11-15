@@ -16,3 +16,6 @@
 
 # JetBrains IDEs
 .idea
+
+# K6 genetared
+k6
