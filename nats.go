@@ -1,77 +1,82 @@
 package nats
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	natsio "github.com/nats-io/nats.go"
+	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 )
-
-const version = "v0.0.1"
 
 type NatsMessage struct {
 	Data  string
 	Topic string
 }
 
+type MessageHandler func(NatsMessage) error
+
 func init() {
 	modules.Register("k6/x/nats", new(Nats))
-	fmt.Println("Running xk6-nats@$" + version)
 }
 
-type Nats struct{}
-
-func (n *Nats) Connect(address, certificate, certificateServerName string) (*natsio.Conn, error) {
-	options := natsio.GetDefaultOptions()
-
-	return options.Connect()
+type Nats struct {
+	conn *natsio.Conn
 }
 
-func (n *Nats) Close(conn *natsio.Conn) error {
-	if conn == nil {
+func (n *Nats) XNats(ctx *context.Context, url string) (interface{}, error) {
+	rt := common.GetRuntime(*ctx)
+	c, err := natsio.Connect(url)
+	if err != nil {
+		return nil, err
+	}
+	p := &Nats{
+		conn: c,
+	}
+	return common.Bind(rt, p, ctx), nil
+}
+
+func (n *Nats) Close() {
+	if n.conn != nil {
+		n.conn.Close()
+	}
+}
+
+func (n *Nats) Publish(topic, message string) error {
+	if n.conn == nil {
 		return fmt.Errorf("the connection is not valid")
 	}
 
-	conn.Close()
-
-	return nil
+	return n.conn.Publish(topic, []byte(message))
 }
 
-func (n *Nats) Publish(conn *natsio.Conn, topic, message string) error {
-	if conn == nil {
-		return fmt.Errorf("the connection is not valid")
-	}
-
-	fmt.Printf("Publishing [%s] @ %s\n", message, topic)
-
-	return conn.Publish(topic, []byte(message))
-}
-
-func (n *Nats) Subscribe(conn *natsio.Conn, topic string, handler func(NatsMessage)) {
-	if conn == nil {
+func (n *Nats) Subscribe(topic string, handler MessageHandler) {
+	if n.conn == nil {
 		fmt.Errorf("the connection is not valid")
 	}
 
-	conn.Subscribe(topic, func(msg *natsio.Msg) {
-		fmt.Printf("Processing [%q]\n", msg)
-		//message := NatsMessage{
-		//	Data:  string(msg.Data),
-		//	Topic: msg.Subject,
-		//}
-		//handler(message)
+	n.conn.Subscribe(topic, func(msg *natsio.Msg) {
+		message := NatsMessage{
+			Data:  string(msg.Data),
+			Topic: msg.Subject,
+		}
+		handler(message)
 	})
 }
 
-func (n *Nats) Request(conn *natsio.Conn, subject, data string) (string, error) {
-	if conn == nil {
-		return "", fmt.Errorf("the connection is not valid")
+func (n *Nats) Request(subject, data string) NatsMessage {
+	if n.conn == nil {
+		fmt.Errorf("the connection is not valid")
 	}
 
-	msg, err := conn.Request(subject, []byte(data), 1*time.Second)
+	msg, err := n.conn.Request(subject, []byte(data), 1*time.Second)
 	if err != nil {
-		return "", err
+		fmt.Errorf(err.Error())
 	}
 
-	return string(msg.Data), nil
+	return NatsMessage{
+		Data:  string(msg.Data),
+		Topic: msg.Subject,
+	}
 }

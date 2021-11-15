@@ -1,18 +1,27 @@
-import nats from 'k6/x/nats';
+import { sleep } from 'k6';
+import { Nats } from 'k6/x/nats';
 
-const conn = nats.connect('nats://localhost:4222');
+const publisher = new Nats('nats://localhost:4222');
+const subscriber = new Nats('nats://localhost:4222');
 
 export function setup() {
 }
 
 export default function () {
-    nats.subscribe(conn, 'topic', (message) => {
-        console.log(`Data > ${message.data} @ ${message.subject}`);
-    });
+    const handler = function(msg) { console.log('received data: ' + msg.data) };
+    subscriber.subscribe('topic', handler);
 
-    nats.publish(conn, 'topic', '{ "foo": "bar" }');
+    sleep(1)
+
+    publisher.publish('topic', '{ "foo": "bar" }');
+    publisher.publish('topic', '{ "foo": "1" }');
+    publisher.publish('topic', '{ "foo": "2" }');
+    publisher.publish('topic', '{ "foo": "3" }');
+
+    sleep(1)
 }
 
 export function teardown() {
-    nats.close(conn);
+    publisher.close();
+    subscriber.close();
 }
