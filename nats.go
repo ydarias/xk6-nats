@@ -10,12 +10,12 @@ import (
 	"go.k6.io/k6/js/modules"
 )
 
-type NatsMessage struct {
+type Message struct {
 	Data  string
 	Topic string
 }
 
-type MessageHandler func(NatsMessage) error
+type MessageHandler func(Message) error
 
 func init() {
 	modules.Register("k6/x/nats", new(Nats))
@@ -57,7 +57,7 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) {
 	}
 
 	n.conn.Subscribe(topic, func(msg *natsio.Msg) {
-		message := NatsMessage{
+		message := Message{
 			Data:  string(msg.Data),
 			Topic: msg.Subject,
 		}
@@ -65,7 +65,7 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) {
 	})
 }
 
-func (n *Nats) Request(subject, data string) NatsMessage {
+func (n *Nats) Request(subject, data string) Message {
 	if n.conn == nil {
 		fmt.Errorf("the connection is not valid")
 	}
@@ -75,7 +75,7 @@ func (n *Nats) Request(subject, data string) NatsMessage {
 		fmt.Errorf(err.Error())
 	}
 
-	return NatsMessage{
+	return Message{
 		Data:  string(msg.Data),
 		Topic: msg.Subject,
 	}
