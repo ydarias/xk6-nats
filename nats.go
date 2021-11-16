@@ -74,20 +74,25 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) {
 	})
 }
 
-func (n *Nats) Request(subject, data string) Message {
+func (n *Nats) Request(subject, data string) (Message, error) {
 	if n.conn == nil {
 		fmt.Errorf("the connection is not valid")
 	}
 
+	fmt.Printf("NATS - Request to subject %s\n", subject)
+	fmt.Printf("NATS - Request with payload %s\n", data)
+
 	msg, err := n.conn.Request(subject, []byte(data), 1*time.Second)
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Printf("NATS ERROR - %s\n", err.Error())
+
+		return Message{}, err
 	}
 
 	return Message{
 		Data:  string(msg.Data),
 		Topic: msg.Subject,
-	}
+	}, nil
 }
 
 type Configuration struct {
