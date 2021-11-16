@@ -30,25 +30,33 @@ xk6 build --with github.com/ydarias/xk6-nats@latest
 ## Test structure
 
 ```javascript
-import { sleep } from 'k6';
-import { Nats } from 'k6/x/nats';
+import {check, sleep} from 'k6';
+import {Nats} from 'k6/x/nats';
 
-const publisher = new Nats('nats://localhost:4222');
-const subscriber = new Nats('nats://localhost:4222');
+const natsConfig = {
+    servers: ['nats://localhost:4222'],
+    unsafe: true,
+};
+
+const publisher = new Nats(natsConfig);
+const subscriber = new Nats(natsConfig);
 
 export function setup() {
 }
 
 export default function () {
-    const handler = function(msg) { console.log('received data: ' + msg.data) };
-    subscriber.subscribe('topic', handler);
+    // Subscribing to a topic
+    subscriber.subscribe('topic', (msg) => {
+        check(msg, {
+            'Is expected message': (m) => m.data === 'the message',
+            'Is expected topic': (m) => m.topic === 'topic',
+        })
+    });
 
     sleep(1)
 
-    publisher.publish('topic', '{ "foo": "bar" }');
-    publisher.publish('topic', '{ "foo": "1" }');
-    publisher.publish('topic', '{ "foo": "2" }');
-    publisher.publish('topic', '{ "foo": "3" }');
+    // Publising in a topic
+    publisher.publish('topic', 'the message');
 
     sleep(1)
 }
@@ -58,3 +66,19 @@ export function teardown() {
     subscriber.close();
 }
 ```
+
+### Configuration options
+
+```json
+{
+  "servers": [
+    "nats://localhost:4222"
+  ],
+  "unsafe": false,
+  "token": "token-value"
+}
+```
+
+* `servers` accepts an array of strings with the URL to the NATS servers.
+* `unsafe` (optional) allows to run with self-signed certificates when doing tests against `localhost` configured with a certificate, if the value is `true` (default value is `false`)
+* `token` (optional) is the value of the token used to connect to the NATS server.

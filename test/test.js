@@ -1,8 +1,13 @@
-import { check, sleep } from 'k6';
-import { Nats } from 'k6/x/nats';
+import {check, sleep} from 'k6';
+import {Nats} from 'k6/x/nats';
 
-const publisher = new Nats('nats://localhost:4222');
-const subscriber = new Nats('nats://localhost:4222');
+const natsConfig = {
+    servers: ['nats://localhost:4222'],
+    unsafe: true,
+};
+
+const publisher = new Nats(natsConfig);
+const subscriber = new Nats(natsConfig);
 
 export function setup() {
 }

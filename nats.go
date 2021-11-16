@@ -2,6 +2,7 @@ package nats
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -9,13 +10,6 @@ import (
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 )
-
-type Message struct {
-	Data  string
-	Topic string
-}
-
-type MessageHandler func(Message) error
 
 func init() {
 	modules.Register("k6/x/nats", new(Nats))
@@ -25,15 +19,30 @@ type Nats struct {
 	conn *natsio.Conn
 }
 
-func (n *Nats) XNats(ctx *context.Context, url string) (interface{}, error) {
+// XNats JS constructor
+func (n *Nats) XNats(ctx *context.Context, configuration Configuration) (interface{}, error) {
 	rt := common.GetRuntime(*ctx)
-	c, err := natsio.Connect(url)
+
+	natsOptions := natsio.GetDefaultOptions()
+	natsOptions.Servers = configuration.Servers
+	if configuration.Unsafe {
+		natsOptions.TLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+	if configuration.Token != "" {
+		natsOptions.Token = configuration.Token
+	}
+
+	c, err := natsOptions.Connect()
 	if err != nil {
 		return nil, err
 	}
+
 	p := &Nats{
 		conn: c,
 	}
+
 	return common.Bind(rt, p, ctx), nil
 }
 
@@ -43,12 +52,12 @@ func (n *Nats) Close() {
 	}
 }
 
-func (n *Nats) Publish(topic, message string) error {
+func (n *Nats) Publish(topic, message string) {
 	if n.conn == nil {
-		return fmt.Errorf("the connection is not valid")
+		fmt.Errorf("the connection is not valid")
 	}
 
-	return n.conn.Publish(topic, []byte(message))
+	n.conn.Publish(topic, []byte(message))
 }
 
 func (n *Nats) Subscribe(topic string, handler MessageHandler) {
@@ -80,3 +89,16 @@ func (n *Nats) Request(subject, data string) Message {
 		Topic: msg.Subject,
 	}
 }
+
+type Configuration struct {
+	Servers []string
+	Unsafe  bool
+	Token   string
+}
+
+type Message struct {
+	Data  string
+	Topic string
+}
+
+type MessageHandler func(Message) error
