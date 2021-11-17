@@ -41,16 +41,13 @@ import {Nats} from 'k6/x/nats';
 
 const natsConfig = {
     servers: ['nats://localhost:4222'],
+    unsafe: true,
 };
 
 const publisher = new Nats(natsConfig);
 const subscriber = new Nats(natsConfig);
 
-export function setup() {
-}
-
 export default function () {
-    // Subscribing to a topic
     subscriber.subscribe('topic', (msg) => {
         check(msg, {
             'Is expected message': (m) => m.data === 'the message',
@@ -60,7 +57,6 @@ export default function () {
 
     sleep(1)
 
-    // Publising in a topic
     publisher.publish('topic', 'the message');
 
     sleep(1)
@@ -94,6 +90,10 @@ export default function () {
     check(res, {
         'payload pushed': (r) => r.status === 'success',
     });
+}
+
+export function teardown() {
+    natsClient.close();
 }
 ```
 

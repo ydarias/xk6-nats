@@ -9,9 +9,6 @@ const natsConfig = {
 const publisher = new Nats(natsConfig);
 const subscriber = new Nats(natsConfig);
 
-export function setup() {
-}
-
 export default function () {
     subscriber.subscribe('topic', (msg) => {
         check(msg, {
