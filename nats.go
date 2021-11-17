@@ -103,4 +103,4 @@ type Message struct {
 	Topic string
 }
 
-type MessageHandler func(Message) error
+type MessageHandler func(Message)
