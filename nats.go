@@ -52,40 +52,37 @@ func (n *Nats) Close() {
 	}
 }
 
-func (n *Nats) Publish(topic, message string) {
+func (n *Nats) Publish(topic, message string) error {
 	if n.conn == nil {
-		fmt.Errorf("the connection is not valid")
+		return fmt.Errorf("the connection is not valid")
 	}
 
-	n.conn.Publish(topic, []byte(message))
+	return n.conn.Publish(topic, []byte(message))
 }
 
-func (n *Nats) Subscribe(topic string, handler MessageHandler) {
+func (n *Nats) Subscribe(topic string, handler MessageHandler) error {
 	if n.conn == nil {
-		fmt.Errorf("the connection is not valid")
+		return fmt.Errorf("the connection is not valid")
 	}
 
-	n.conn.Subscribe(topic, func(msg *natsio.Msg) {
+	_, err := n.conn.Subscribe(topic, func(msg *natsio.Msg) {
 		message := Message{
 			Data:  string(msg.Data),
 			Topic: msg.Subject,
 		}
 		handler(message)
 	})
+
+	return err
 }
 
 func (n *Nats) Request(subject, data string) (Message, error) {
 	if n.conn == nil {
-		fmt.Errorf("the connection is not valid")
+		return Message{}, fmt.Errorf("the connection is not valid")
 	}
 
-	fmt.Printf("NATS - Request to subject %s\n", subject)
-	fmt.Printf("NATS - Request with payload %s\n", data)
-
-	msg, err := n.conn.Request(subject, []byte(data), 1*time.Second)
+	msg, err := n.conn.Request(subject, []byte(data), 5*time.Second)
 	if err != nil {
-		fmt.Printf("NATS ERROR - %s\n", err.Error())
-
 		return Message{}, err
 	}
 
