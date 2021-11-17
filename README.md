@@ -27,7 +27,13 @@ xk6 build --with github.com/ydarias/xk6-nats@latest
 ./k6 run folder/test.js
 ```
 
-## Test structure
+## Testing
+
+NATS supports the classical pub/sub pattern, but also it implements a request-reply pattern, this extension provides support for both.
+
+![xk6-nats operations diagram](assets/xk6-nats-operations.png)
+
+### Pub/sub test
 
 ```javascript
 import {check, sleep} from 'k6';
@@ -35,7 +41,6 @@ import {Nats} from 'k6/x/nats';
 
 const natsConfig = {
     servers: ['nats://localhost:4222'],
-    unsafe: true,
 };
 
 const publisher = new Nats(natsConfig);
@@ -64,6 +69,31 @@ export default function () {
 export function teardown() {
     publisher.close();
     subscriber.close();
+}
+```
+
+Because K6 doesn't provide an event loop we need to use the `sleep` function to wait for async operations to complete.
+
+### Request-reply test
+
+```javascript
+import { Nats } from 'k6/x/nats';
+import { check, sleep } from 'k6';
+
+const natsClient = new Nats({
+  servers: ['nats://localhost:4222'],
+});
+
+export default function () {
+    const payload = {
+        foo: 'bar',
+    };
+
+    const res = natsClient.request('my.subject', JSON.stringify(payload));
+
+    check(res, {
+        'payload pushed': (r) => r.status === 'success',
+    });
 }
 ```
 
