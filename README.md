@@ -27,6 +27,37 @@ xk6 build --with github.com/ydarias/xk6-nats@latest
 ./k6 run folder/test.js
 ```
 
+## API
+
+### Nats
+
+A Nats instance represents the connection with the NATS server, and it is created with `new Nats(configuration)`, where configuration attributes are:
+
+| Attribute | Description |
+| --- | --- |
+| servers | (mandatory) is the list of servers where NATS is available (e.g. `[nats://localhost:4222]`) |
+| unsafe | (optional) allows running with self-signed certificates when doing tests against a testing environment, it is a boolean value (default value is `false`) |
+| token | (optional) is the value of the token used to connect to the NATS server |
+
+#### Available functions
+
+| Function | Description |
+| --- | --- |
+| publish(topic, message) | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| subscribe(topic, handler) | subscribes to the publication of a message using the topic (string) and a handler that is a function like `(msg) => void` |
+| request | sends a request to the topic (string) and the given payload as string representation, and returns a message |
+
+#### Return values
+
+A message return value has the following attributes:
+
+| Attribute | Description | 
+| --- | --- |
+| data | the payload in string format |
+| topic | the topic where the message was published |
+
+**Some examples at the section below**.
+
 ## Testing
 
 NATS supports the classical pub/sub pattern, but also it implements a request-reply pattern, this extension provides support for both.
@@ -96,19 +127,3 @@ export function teardown() {
     natsClient.close();
 }
 ```
-
-### Configuration options
-
-```json
-{
-  "servers": [
-    "nats://localhost:4222"
-  ],
-  "unsafe": false,
-  "token": "token-value"
-}
-```
-
-* `servers` accepts an array of strings with the URL to the NATS servers.
-* `unsafe` (optional) allows to run with self-signed certificates when doing tests against `localhost` configured with a certificate, if the value is `true` (default value is `false`)
-* `token` (optional) is the value of the token used to connect to the NATS server.
