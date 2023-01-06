@@ -21,9 +21,9 @@ type RootModule struct{}
 
 // ModuleInstance represents an instance of the module for every VU.
 type Nats struct {
-	conn    *natsio.Conn
-	vu      modules.VU
-	exports map[string]interface{}
+	conn      *natsio.Conn
+	vu        modules.VU
+	exports   map[string]interface{}
 }
 
 // Ensure the interfaces are implemented correctly.
@@ -113,6 +113,86 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) error {
 
 	return err
 }
+
+// Connects to JetStream and creates a new stream or updates it if exists already
+func (n *Nats) JetStreamSetup(streamConfig *natsio.StreamConfig) error {
+	if n.conn == nil {
+		return fmt.Errorf("the connection is not valid")
+	}
+
+        js, err := n.conn.JetStream()
+        if err != nil {
+                return fmt.Errorf("cannot accquire jetstream context %w", err)
+        }
+
+        stream, _ := js.StreamInfo(streamConfig.Name)
+        if stream == nil {
+                _, err = js.AddStream(streamConfig)
+        } else {
+                _, err = js.UpdateStream(streamConfig)
+        }
+
+	return err
+}
+
+func (n *Nats) JetStreamDelete(name string) error {
+	if n.conn == nil {
+		return fmt.Errorf("the connection is not valid")
+	}
+
+        js, err := n.conn.JetStream()
+        if err != nil {
+                return fmt.Errorf("cannot accquire jetstream context %w", err)
+        }
+
+        js.DeleteStream(name)
+
+        return err
+}
+
+
+func (n *Nats) JetStreamPublish(topic string, message string) error {
+	if n.conn == nil {
+		return fmt.Errorf("the connection is not valid")
+	}
+
+	js, err := n.conn.JetStream()
+        if err != nil {
+                return fmt.Errorf("cannot accquire jetstream context %w", err)
+        }
+
+        _, err = js.Publish(topic, []byte(message))
+
+        return err
+}
+
+func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) error {
+	if n.conn == nil {
+		return fmt.Errorf("the connection is not valid")
+	}
+
+	js, err := n.conn.JetStream()
+        if err != nil {
+                return fmt.Errorf("cannot accquire jetstream context %w", err)
+        }
+
+        sub, err := js.Subscribe(topic, func(msg *natsio.Msg) {
+		message := Message{
+			Data:  string(msg.Data),
+			Topic: msg.Subject,
+		}
+		handler(message)
+	})
+        
+        defer func() {
+                if err := sub.Unsubscribe(); err != nil {
+                        fmt.Errorf("Error unsubscribing")
+		}
+        }()
+
+	return err
+}
+
 
 func (n *Nats) Request(subject, data string) (Message, error) {
 	if n.conn == nil {
