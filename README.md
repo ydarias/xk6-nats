@@ -27,6 +27,12 @@ xk6 build --with github.com/ydarias/xk6-nats@latest
 ./k6 run folder/test.js
 ```
 
+To run JetStream test, make sure NATS JetStream is started, e.g. `nats-server -js`
+
+```shell
+./k6 run folder/test_jetstream.js
+```
+
 ## API
 
 ### Nats
@@ -125,5 +131,67 @@ export default function () {
 
 export function teardown() {
     natsClient.close();
+}
+```
+
+### JetStream test
+
+The extension also supports certain JetStream features: `jetStreamSetup`, `jetStreamDelete`, `jetStreamPublish`, `jetStreamSubscribe`.
+
+Refer to nats-io's `StreamConfig` for configuration. Custom structs are implemented as enum, e.g. storage_type = 0 for file storage and 1 for memory. 
+
+Links: 
+
+[StreamConfig](https://github.com/nats-io/nats.go/blob/main/jsm.go)
+[Custom fields](https://github.com/nats-io/nats.go/blob/main/js.go)
+
+```javascript
+import {check, sleep} from 'k6';
+import {Nats} from 'k6/x/nats';
+
+const natsConfig = {
+    servers: ['nats://localhost:4222'],
+    unsafe: true,
+};
+
+const sub = "foo"
+
+const streamConfig = {
+    // snake case
+    name: "mock",
+    subjects: [sub],
+    max_msgs_per_subject: 1,
+    discard: 0,
+    storage_type: 1
+}
+
+const subscriber = new Nats(natsConfig);
+const publisher = new Nats(natsConfig);
+
+export default function () {
+
+    publisher.jetStreamSetup(streamConfig)
+    sleep(3)
+    publisher.jetStreamPublish(sub, "I am a foo")
+    sleep(1)
+
+    // const sub = "foo"
+
+    subscriber.jetStreamSubscribe(sub, (msg) => {
+        check(msg, {
+            'Is expected message': (m) => m.data === "I am a foo",
+            'Is expected stream topic': (m) => m.topic === sub,
+       })
+    });
+
+    sleep(1)
+
+}
+
+export function teardown() {
+    subscriber.close();
+    publisher.jetStreamDelete("mock")
+    sleep(1)
+    publisher.close();
 }
 ```
