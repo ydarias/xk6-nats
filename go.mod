@@ -1,4 +1,4 @@
-module github.com/ydarias/xk6-nats
+module github.com/holoplot/xk6-nats
 
 go 1.17
 

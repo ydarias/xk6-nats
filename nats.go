@@ -193,6 +193,25 @@ func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) error {
 	return err
 }
 
+func (n *Nats) JetStreamSubscribeSync(topic string) (*natsio.Subscription, error) {
+	if n.conn == nil {
+		return nil, fmt.Errorf("the connection is not valid")
+	}
+
+	js, err := n.conn.JetStream()
+	if err != nil {
+			return nil, fmt.Errorf("cannot accquire jetstream context %w", err)
+	}
+
+	sub, err := js.SubscribeSync(topic)
+	
+	if err != nil {
+		return nil, err
+	}
+
+	return sub, nil
+}
+
 
 func (n *Nats) Request(subject, data string) (Message, error) {
 	if n.conn == nil {
