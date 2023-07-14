@@ -2,7 +2,7 @@ import {check, sleep} from 'k6';
 import {Nats} from 'k6/x/nats';
 
 const natsConfig = {
-    servers: ['nats://localhost:4222'],
+    servers: [`nats://${__ENV.NATS_HOSTNAME}:4222`],
     unsafe: true,
 };
 

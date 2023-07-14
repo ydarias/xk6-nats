@@ -19,18 +19,25 @@ go install go.k6.io/xk6/cmd/xk6@latest
 
 2. Build the binary:
 ```shell
-xk6 build --with github.com/ydarias/xk6-nats@latest
+xk6 build --with github.com/fernandoescolar/xk6-nats@latest
 ```
 
 3. Run a test
+
 ```shell
-./k6 run folder/test.js
+k6 run -e NATS_HOSTNAME=localhost test/test.js
 ```
 
 To run JetStream test, make sure NATS JetStream is started, e.g. `nats-server -js`
 
 ```shell
-./k6 run folder/test_jetstream.js
+k6 run -e NATS_HOSTNAME=localhost test/test_jetstream.js
+```
+
+To run publish with headers test, make sure NATS JetStream is started, e.g. `nats-server -js`
+
+```shell
+./k6 run -e NATS_HOSTNAME=localhost folder/test_headers.js
 ```
 
 ## API
@@ -50,6 +57,7 @@ A Nats instance represents the connection with the NATS server, and it is create
 | Function | Description |
 | --- | --- |
 | publish(topic, message) | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| publisWithHeaders(topic, message, headers) | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
 | subscribe(topic, handler) | subscribes to the publication of a message using the topic (string) and a handler that is a function like `(msg) => void` |
 | request | sends a request to the topic (string) and the given payload as string representation, and returns a message |
 
@@ -57,10 +65,11 @@ A Nats instance represents the connection with the NATS server, and it is create
 
 A message return value has the following attributes:
 
-| Attribute | Description | 
+| Attribute | Description |
 | --- | --- |
 | data | the payload in string format |
 | topic | the topic where the message was published |
+| headers | the headers of the message |
 
 **Some examples at the section below**.
 
@@ -138,9 +147,9 @@ export function teardown() {
 
 The extension also supports certain JetStream features: `jetStreamSetup`, `jetStreamDelete`, `jetStreamPublish`, `jetStreamSubscribe`.
 
-Refer to nats-io's `StreamConfig` for configuration. Custom structs are implemented as enum, e.g. storage_type = 0 for file storage and 1 for memory. 
+Refer to nats-io's `StreamConfig` for configuration. Custom structs are implemented as enum, e.g. storage_type = 0 for file storage and 1 for memory.
 
-Links: 
+Links:
 
 [StreamConfig](https://github.com/nats-io/nats.go/blob/main/jsm.go)
 [Custom fields](https://github.com/nats-io/nats.go/blob/main/js.go)

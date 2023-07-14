@@ -14,12 +14,13 @@ export default function () {
         check(msg, {
             'Is expected message': (m) => m.data === 'the message',
             'Is expected topic': (m) => m.topic === 'topic',
+            'Is expected header': (m) => m.header['header1'] === 'value1'
         })
     });
 
     sleep(1)
 
-    publisher.publish('topic', 'the message');
+    publisher.publishWithHeaders('topic', 'the message', { 'header1': 'value1' });
 
     sleep(1)
 }

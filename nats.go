@@ -90,16 +90,21 @@ func (n *Nats) Close() {
 	}
 }
 
-func (n *Nats) PublishWithHeaders(topic, message string, headers map[string][]string) error {
+func (n *Nats) PublishWithHeaders(topic, message string, headers map[string]string) error {
 	if n.conn == nil {
 		return fmt.Errorf("the connection is not valid")
+	}
+
+	h := natsio.Header{}
+	for k, v := range headers {
+		h.Add(k, v)
 	}
 
 	return n.conn.PublishMsg(&natsio.Msg{
 		Subject: topic,
 		Reply:   "",
 		Data:    []byte(message),
-		Header:  headers,
+		Header:  h,
 	})
 }
 
@@ -125,9 +130,15 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) error {
 	}
 
 	_, err := n.conn.Subscribe(topic, func(msg *natsio.Msg) {
+		h := make(map[string]string)
+		for k := range msg.Header {
+			h[k] = msg.Header.Get(k)
+		}
+
 		message := Message{
-			Data:  string(msg.Data),
-			Topic: msg.Subject,
+			Data:   string(msg.Data),
+			Topic:  msg.Subject,
+			Header: h,
 		}
 		handler(message)
 	})
@@ -242,8 +253,9 @@ type Configuration struct {
 }
 
 type Message struct {
-	Data  string
-	Topic string
+	Data   string
+	Topic  string
+	Header map[string]string
 }
 
 type MessageHandler func(Message)
