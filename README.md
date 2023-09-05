@@ -2,7 +2,7 @@
 
 This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com/k6io/xk6) system, that allows to use NATS protocol.
 
-> This extension is a fork of [k6-nats](https://github.com/ydarias/xk6-nats) that adds headers support and some other features.
+> This extension is a fork of [ydarias](https://github.com/ydarias)/[k6-nats](https://github.com/ydarias/xk6-nats) that adds headers support and some other features.
 > It is provided with no warranty, use it at your own risk.
 
 - [xk6-nats](#xk6-nats)
@@ -14,6 +14,7 @@ This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com
     - [JetStream](#jetstream)
       - [JetStream operations](#jetstream-operations)
     - [Return values](#return-values)
+  - [License](#license)
 
 
 ## Build
@@ -198,3 +199,8 @@ A `message` return value has the following attributes:
 | topic | the topic where the message was published |
 | headers | the headers of the message |
 
+## License
+
+The original source code of this project belongs to [ydarias](https://github.com/ydarias) and has not been relased under any license.
+
+The source code of this project is released under the [MIT License](LICENSE).
