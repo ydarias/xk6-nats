@@ -108,12 +108,27 @@ func (n *Nats) PublishWithHeaders(topic, message string, headers map[string]stri
 	})
 }
 
-func (n *Nats) PublishMsg(msg *natsio.Msg) error {
+func (n *Nats) PublishMsg(msg *Message) error {
 	if n.conn == nil {
 		return fmt.Errorf("the connection is not valid")
 	}
 
-	return n.conn.PublishMsg(msg)
+	raw := msg.Raw
+	if raw == nil {
+		raw = []byte(msg.Data)
+	}
+
+	h := natsio.Header{}
+	for k, v := range msg.Header {
+		h.Add(k, v)
+	}
+
+	return n.conn.PublishMsg(&natsio.Msg{
+		Subject: msg.Topic,
+		Reply:   "",
+		Data:    raw,
+		Header:  h,
+	})
 }
 
 func (n *Nats) Publish(topic, message string) error {
@@ -137,6 +152,7 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) (*Subscription, e
 		}
 
 		message := Message{
+			Raw:    msg.Data,
 			Data:   string(msg.Data),
 			Topic:  msg.Subject,
 			Header: h,
@@ -233,6 +249,36 @@ func (n *Nats) JetStreamPublishWithHeaders(topic, message string, headers map[st
 	return err
 }
 
+func (n *Nats) JetStreamPublishMsg(msg *Message) error {
+	if n.conn == nil {
+		return fmt.Errorf("the connection is not valid")
+	}
+
+	raw := msg.Raw
+	if raw == nil {
+		raw = []byte(msg.Data)
+	}
+
+	h := natsio.Header{}
+	for k, v := range msg.Header {
+		h.Add(k, v)
+	}
+
+	js, err := n.conn.JetStream()
+	if err != nil {
+		return fmt.Errorf("cannot accquire jetstream context %w", err)
+	}
+
+	_, err = js.PublishMsg(&natsio.Msg{
+		Subject: msg.Topic,
+		Reply:   "",
+		Data:    raw,
+		Header:  h,
+	})
+
+	return err
+}
+
 func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) (*Subscription, error) {
 	if n.conn == nil {
 		return nil, fmt.Errorf("the connection is not valid")
@@ -251,6 +297,7 @@ func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) (*Subscr
 		}
 
 		message := Message{
+			Raw:    msg.Data,
 			Data:   string(msg.Data),
 			Topic:  msg.Subject,
 			Header: h,
@@ -288,6 +335,7 @@ func (n *Nats) Request(subject, data string, headers map[string]string) (Message
 	}
 
 	return Message{
+		Raw:    msg.Data,
 		Data:   string(msg.Data),
 		Topic:  msg.Subject,
 		Header: headers,
@@ -301,6 +349,7 @@ type Configuration struct {
 }
 
 type Message struct {
+	Raw    []byte
 	Data   string
 	Topic  string
 	Header map[string]string

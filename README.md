@@ -84,9 +84,10 @@ You can publish messages to a topic using the following functions:
 
 | Function | Description |
 | --- | --- |
-| `publish(topic, message)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
-| `publisWithHeaders(topic, message, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
-| `request(topic, message, headers)` | sends a request to the topic (string) and the given payload as string representation and the headers, and returns a `message` |
+| `publish(topic, payload)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| `publisWithHeaders(topic, payload, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
+| `publishMsg(message)` | publish a new message using the `message` (object) that has the following attributes: `topic` (string), `data` (string), `raw`(byte array) and `headers` (object) |
+| `request(topic, payload, headers)` | sends a request to the topic (string) and the given payload as string representation and the headers, and returns a `message` |
 
 Example:
 
@@ -95,6 +96,8 @@ const publisher = new Nats(natsConfig)
 
 publisher.publish('topic', 'data')
 publisher.publishWithHeaders('topic', 'data', { 'header1': 'value1' })
+publisher.publishMsg({ topic: 'topic', data: 'string data', headers: { 'header1': 'value1' } })
+publisher.publishMsg({ topic: 'topic', raw: [ 0, 1, 2, 3 ], headers: { 'header1': 'value1' } })
 const message = publisher.request('topic', 'data', { 'header1': 'value1' })
 ```
 
@@ -161,8 +164,9 @@ Once the stream is setup, you can publish and subscribe to it using the followin
 | Function | Description |
 | --- | --- |
 | `jetStreamSetup(config)` | setup a stream with the given configuration |
-| `jetStreamPublish(topic, message)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
-| `jetStreamPublishWithHeaders(topic, message, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
+| `jetStreamPublish(topic, payload)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| `jetStreamPublishWithHeaders(topic, payload, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
+| `jetStreamPublishMsg(message)` | publish a new message using the `message` (object) that has the following attributes: `topic` (string), `data` (string), `raw`(byte array) and `headers` (object) |
 | `jetStreamSubscribe(topic, callback)` | subscribe to a topic (string) and execute the callback function when a `message` is received, it returns a `subscription` |
 
 Example:
@@ -177,6 +181,8 @@ const subscription = subscriber.jetStreamSubscribe('mock', (msg) => {
 const publisher = new Nats(natsConfig)
 publisher.jetStreamPublish('foo', 'data')
 publisher.jetStreamPublishWithHeaders('foo', 'data', { 'header1': 'value1' })
+publisher.jetStreamPublishMsg({ topic: 'topic', data: 'string data', headers: { 'header1': 'value1' } })
+publisher.jetStreamPublishMsg({ topic: 'topic', raw: [ 0, 1, 2, 3 ], headers: { 'header1': 'value1' } })
 
 // ...
 
@@ -196,6 +202,7 @@ A `message` return value has the following attributes:
 
 | Attribute | Description |
 | --- | --- |
+| `raw` | the payload in byte array format |
 | `data` | the payload in string format |
 | `topic` | the topic where the message was published |
 | `headers` | the headers of the message |
