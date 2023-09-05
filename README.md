@@ -14,6 +14,7 @@ This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com
     - [JetStream](#jetstream)
       - [JetStream operations](#jetstream-operations)
     - [Return values](#return-values)
+  - [Examples](#examples)
   - [License](#license)
 
 
@@ -195,9 +196,20 @@ A `message` return value has the following attributes:
 
 | Attribute | Description |
 | --- | --- |
-| data | the payload in string format |
-| topic | the topic where the message was published |
-| headers | the headers of the message |
+| `data` | the payload in string format |
+| `topic` | the topic where the message was published |
+| `headers` | the headers of the message |
+
+## Examples
+
+You can find some examples in the [examples](examples) folder. To run them, you need to have a NATS server running and then run the following command:
+
+```shell
+k6 run -e NATS_HOSTNAME=your_nats_server_host examples/simple.js
+k6 run -e NATS_HOSTNAME=your_nats_server_host examples/withHeaders.js
+```
+
+Or you can check the [test](test) folder to see how to use the extension.
 
 ## License
 
