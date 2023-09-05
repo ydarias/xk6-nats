@@ -124,12 +124,13 @@ func (n *Nats) Publish(topic, message string) error {
 	return n.conn.Publish(topic, []byte(message))
 }
 
-func (n *Nats) Subscribe(topic string, handler MessageHandler) error {
+func (n *Nats) Subscribe(topic string, handler MessageHandler) (*Subscription, error) {
 	if n.conn == nil {
-		return fmt.Errorf("the connection is not valid")
+		return nil, fmt.Errorf("the connection is not valid")
 	}
 
-	_, err := n.conn.Subscribe(topic, func(msg *natsio.Msg) {
+	sub, err := n.conn.Subscribe(topic, func(msg *natsio.Msg) {
+		msg.Ack()
 		h := make(map[string]string)
 		for k := range msg.Header {
 			h[k] = msg.Header.Get(k)
@@ -143,7 +144,17 @@ func (n *Nats) Subscribe(topic string, handler MessageHandler) error {
 		handler(message)
 	})
 
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	subscription := Subscription{
+		Close: func() error {
+			return sub.Unsubscribe()
+		},
+	}
+
+	return &subscription, err
 }
 
 // Connects to JetStream and creates a new stream or updates it if exists already
@@ -197,9 +208,14 @@ func (n *Nats) JetStreamPublish(topic string, message string) error {
 	return err
 }
 
-func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) error {
+func (n *Nats) JetStreamPublishWithHeaders(topic, message string, headers map[string]string) error {
 	if n.conn == nil {
 		return fmt.Errorf("the connection is not valid")
+	}
+
+	h := natsio.Header{}
+	for k, v := range headers {
+		h.Add(k, v)
 	}
 
 	js, err := n.conn.JetStream()
@@ -207,21 +223,52 @@ func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) error {
 		return fmt.Errorf("cannot accquire jetstream context %w", err)
 	}
 
+	_, err = js.PublishMsg(&natsio.Msg{
+		Subject: topic,
+		Reply:   "",
+		Data:    []byte(message),
+		Header:  h,
+	})
+
+	return err
+}
+
+func (n *Nats) JetStreamSubscribe(topic string, handler MessageHandler) (*Subscription, error) {
+	if n.conn == nil {
+		return nil, fmt.Errorf("the connection is not valid")
+	}
+
+	js, err := n.conn.JetStream()
+	if err != nil {
+		return nil, fmt.Errorf("cannot accquire jetstream context %w", err)
+	}
+
 	sub, err := js.Subscribe(topic, func(msg *natsio.Msg) {
+		msg.Ack()
+		h := make(map[string]string)
+		for k := range msg.Header {
+			h[k] = msg.Header.Get(k)
+		}
+
 		message := Message{
-			Data:  string(msg.Data),
-			Topic: msg.Subject,
+			Data:   string(msg.Data),
+			Topic:  msg.Subject,
+			Header: h,
 		}
 		handler(message)
 	})
 
-	defer func() {
-		if err := sub.Unsubscribe(); err != nil {
-			fmt.Errorf("Error unsubscribing")
-		}
-	}()
+	if err != nil {
+		return nil, err
+	}
 
-	return err
+	subscription := Subscription{
+		Close: func() error {
+			return sub.Unsubscribe()
+		},
+	}
+
+	return &subscription, err
 }
 
 func (n *Nats) Request(subject, data string, headers map[string]string) (Message, error) {
@@ -241,8 +288,9 @@ func (n *Nats) Request(subject, data string, headers map[string]string) (Message
 	}
 
 	return Message{
-		Data:  string(msg.Data),
-		Topic: msg.Subject,
+		Data:   string(msg.Data),
+		Topic:  msg.Subject,
+		Header: headers,
 	}, nil
 }
 
@@ -256,6 +304,10 @@ type Message struct {
 	Data   string
 	Topic  string
 	Header map[string]string
+}
+
+type Subscription struct {
+	Close func() error
 }
 
 type MessageHandler func(Message)

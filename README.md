@@ -2,8 +2,19 @@
 
 This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com/k6io/xk6) system, that allows to use NATS protocol.
 
-| :exclamation: This is a proof of concept, isn't supported by the k6 team, and may break in the future. USE AT YOUR OWN RISK! |
-|------|
+> This extension is a fork of [k6-nats](https://github.com/ydarias/xk6-nats) that adds headers support and some other features.
+> It is provided with no warranty, use it at your own risk.
+
+- [xk6-nats](#xk6-nats)
+  - [Build](#build)
+  - [API](#api)
+    - [Nats](#nats)
+    - [Publishing](#publishing)
+    - [Subscribing](#subscribing)
+    - [JetStream](#jetstream)
+      - [JetStream operations](#jetstream-operations)
+    - [Return values](#return-values)
+
 
 ## Build
 
@@ -37,7 +48,7 @@ k6 run -e NATS_HOSTNAME=localhost test/test_jetstream.js
 To run publish with headers test, make sure NATS JetStream is started, e.g. `nats-server -js`
 
 ```shell
-./k6 run -e NATS_HOSTNAME=localhost folder/test_headers.js
+./k6 run -e NATS_HOSTNAME=localhost test/test_headers.js
 ```
 
 ## API
@@ -48,22 +59,138 @@ A Nats instance represents the connection with the NATS server, and it is create
 
 | Attribute | Description |
 | --- | --- |
-| servers | (mandatory) is the list of servers where NATS is available (e.g. `[nats://localhost:4222]`) |
-| unsafe | (optional) allows running with self-signed certificates when doing tests against a testing environment, it is a boolean value (default value is `false`) |
-| token | (optional) is the value of the token used to connect to the NATS server |
+| `servers` | (mandatory) is the list of servers where NATS is available (e.g. `[nats://localhost:4222]`) |
+| `unsafe` | (optional) allows running with self-signed certificates when doing tests against a testing environment, it is a boolean value (default value is `false`) |
+| `token` | (optional) is the value of the token used to connect to the NATS server |
 
-#### Available functions
+Example:
+
+```ts
+import {Nats} from 'k6/x/nats'
+
+const natsConfig = {
+    servers: ['nats://localhost:4222'],
+    unsafe: true,
+}
+
+const nats = new Nats(natsConfig)
+```
+
+### Publishing
+
+You can publish messages to a topic using the following functions:
 
 | Function | Description |
 | --- | --- |
-| publish(topic, message) | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
-| publisWithHeaders(topic, message, headers) | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
-| subscribe(topic, handler) | subscribes to the publication of a message using the topic (string) and a handler that is a function like `(msg) => void` |
-| request | sends a request to the topic (string) and the given payload as string representation, and returns a message |
+| `publish(topic, message)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| `publisWithHeaders(topic, message, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
+| `request(topic, message, headers)` | sends a request to the topic (string) and the given payload as string representation and the headers, and returns a `message` |
 
-#### Return values
+Example:
 
-A message return value has the following attributes:
+```ts
+const publisher = new Nats(natsConfig)
+
+publisher.publish('topic', 'data')
+publisher.publishWithHeaders('topic', 'data', { 'header1': 'value1' })
+const message = publisher.request('topic', 'data', { 'header1': 'value1' })
+```
+
+### Subscribing
+
+You can subscribe to a topic using the following functions:
+
+| Function | Description |
+| --- | --- |
+| `subscribe(topic, callback)` | subscribe to a topic (string) and execute the callback function when a `message` is received, it returns a `subscription` |
+
+Example:
+
+```ts
+const subscriber = new Nats(natsConfig)
+const subscription = subscriber.subscribe('topic', (msg) => {
+    console.log(msg.data)
+})
+// ...
+subscription.close()
+```
+
+### JetStream
+
+You can use JetStream Pub/Sub in the same way as NATS Pub/Sub. The only difference is that you need to setup the stream before publishing or subscribing to it.
+
+The configuration is the same as the one used in the nats-io's `StreamConfig`:
+
+| Attribute | Description |
+| --- | --- |
+| `name` | (mandatory) is the name of the stream |
+| `description` | (optional) is the description of the stream |
+| `subjects` | (mandatory) is the list of subjects that the stream will be listening to |
+| `retention` | (optional) is the retention policy of the stream, it can be `limits`, `interest`, `workqueue` or `stream` |
+| `max_consumers` | (optional) is the maximum number of consumers that the stream will allow |
+| `max_msgs` | (optional) is the maximum number of messages that the stream will store |
+| `max_bytes` | (optional) is the maximum number of bytes that the stream will store |
+| `max_age` | (optional) is the maximum age of the messages that the stream will store |
+| `max_msg_size` | (optional) is the maximum size of the messages that the stream will store |
+| `discard` | (optional) is the discard policy of the stream, it can be `old`, `new` or `none` |
+| `storage` | (optional) is the type of storage that the stream will use, it can be `file` or `memory` |
+| `replicas` | (optional) is the number of replicas that the stream will have |
+| `no_ack` | (optional) is a boolean value that indicates if the stream will use acks or not |
+
+Example:
+
+```ts
+const streamConfig = {
+    name: "mock",
+    subjects: ["foo"],
+    max_msgs_per_subject: 100,
+    discard: 0,
+    storage: 1
+}
+
+const publisher = new Nats(natsConfig)
+publisher.jetStreamSetup(streamConfig)
+```
+
+#### JetStream operations
+
+Once the stream is setup, you can publish and subscribe to it using the following functions:
+
+| Function | Description |
+| --- | --- |
+| `jetStreamSetup(config)` | setup a stream with the given configuration |
+| `jetStreamPublish(topic, message)` | publish a new message using the topic (string) and the given payload that is a string representation that later is serialized as a byte array |
+| `jetStreamPublishWithHeaders(topic, message, headers)` | publish a new message using the topic (string), the given payload that is a string representation that later is serialized as a byte array and the headers |
+| `jetStreamSubscribe(topic, callback)` | subscribe to a topic (string) and execute the callback function when a `message` is received, it returns a `subscription` |
+
+Example:
+
+```ts
+const subscriber = new Nats(natsConfig)
+publisher.jetStreamSetup(streamConfig)
+const subscription = subscriber.jetStreamSubscribe('mock', (msg) => {
+    console.log(msg.data)
+})
+
+const publisher = new Nats(natsConfig)
+publisher.jetStreamPublish('foo', 'data')
+publisher.jetStreamPublishWithHeaders('foo', 'data', { 'header1': 'value1' })
+
+// ...
+
+subscription.close()
+```
+
+
+### Return values
+
+A `subscription` return value has the following methods:
+
+| Method | Description |
+| --- | --- |
+| `close()` | closes the subscription |
+
+A `message` return value has the following attributes:
 
 | Attribute | Description |
 | --- | --- |
@@ -71,136 +198,3 @@ A message return value has the following attributes:
 | topic | the topic where the message was published |
 | headers | the headers of the message |
 
-**Some examples at the section below**.
-
-## Testing
-
-NATS supports the classical pub/sub pattern, but also it implements a request-reply pattern, this extension provides support for both.
-
-![xk6-nats operations diagram](assets/xk6-nats-operations.png)
-
-### Pub/sub test
-
-```javascript
-import {check, sleep} from 'k6';
-import {Nats} from 'k6/x/nats';
-
-const natsConfig = {
-    servers: ['nats://localhost:4222'],
-    unsafe: true,
-};
-
-const publisher = new Nats(natsConfig);
-const subscriber = new Nats(natsConfig);
-
-export default function () {
-    subscriber.subscribe('topic', (msg) => {
-        check(msg, {
-            'Is expected message': (m) => m.data === 'the message',
-            'Is expected topic': (m) => m.topic === 'topic',
-        })
-    });
-
-    sleep(1)
-
-    publisher.publish('topic', 'the message');
-
-    sleep(1)
-}
-
-export function teardown() {
-    publisher.close();
-    subscriber.close();
-}
-```
-
-Because K6 doesn't provide an event loop we need to use the `sleep` function to wait for async operations to complete.
-
-### Request-reply test
-
-```javascript
-import { Nats } from 'k6/x/nats';
-import { check, sleep } from 'k6';
-
-const natsClient = new Nats({
-  servers: ['nats://localhost:4222'],
-});
-
-export default function () {
-    const payload = {
-        foo: 'bar',
-    };
-
-    const res = natsClient.request('my.subject', JSON.stringify(payload));
-
-    check(res, {
-        'payload pushed': (r) => r.status === 'success',
-    });
-}
-
-export function teardown() {
-    natsClient.close();
-}
-```
-
-### JetStream test
-
-The extension also supports certain JetStream features: `jetStreamSetup`, `jetStreamDelete`, `jetStreamPublish`, `jetStreamSubscribe`.
-
-Refer to nats-io's `StreamConfig` for configuration. Custom structs are implemented as enum, e.g. storage_type = 0 for file storage and 1 for memory.
-
-Links:
-
-[StreamConfig](https://github.com/nats-io/nats.go/blob/main/jsm.go)
-[Custom fields](https://github.com/nats-io/nats.go/blob/main/js.go)
-
-```javascript
-import {check, sleep} from 'k6';
-import {Nats} from 'k6/x/nats';
-
-const natsConfig = {
-    servers: ['nats://localhost:4222'],
-    unsafe: true,
-};
-
-const sub = "foo"
-
-const streamConfig = {
-    // snake case
-    name: "mock",
-    subjects: [sub],
-    max_msgs_per_subject: 1,
-    discard: 0,
-    storage_type: 1
-}
-
-const subscriber = new Nats(natsConfig);
-const publisher = new Nats(natsConfig);
-
-export default function () {
-
-    publisher.jetStreamSetup(streamConfig)
-    sleep(3)
-    publisher.jetStreamPublish(sub, "I am a foo")
-    sleep(1)
-
-    // const sub = "foo"
-
-    subscriber.jetStreamSubscribe(sub, (msg) => {
-        check(msg, {
-            'Is expected message': (m) => m.data === "I am a foo",
-            'Is expected stream topic': (m) => m.topic === sub,
-       })
-    });
-
-    sleep(1)
-
-}
-
-export function teardown() {
-    subscriber.close();
-    publisher.jetStreamDelete("mock")
-    sleep(1)
-    publisher.close();
-}
-```
