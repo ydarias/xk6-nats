@@ -2,8 +2,8 @@
 
 This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com/k6io/xk6) system, that allows to use NATS protocol.
 
-> This extension is a fork of [ydarias](https://github.com/ydarias)/[k6-nats](https://github.com/ydarias/xk6-nats) that adds headers support and some other features.
-> It is provided with no warranty, use it at your own risk.
+|  ❗ This extension isn't supported by the k6 team, and may break in the future. USE AT YOUR OWN RISK! |
+|------|
 
 - [xk6-nats](#xk6-nats)
   - [Build](#build)
