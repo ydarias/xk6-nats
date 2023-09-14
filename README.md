@@ -119,6 +119,8 @@ const subscription = subscriber.subscribe('topic', (msg) => {
 subscription.close()
 ```
 
+> **Note:** the subscription model has been changed. Now when you use `subscribe` method, a subscription object is returned and the subscription should be closed using the `close()` method.
+
 ### JetStream
 
 You can use JetStream Pub/Sub in the same way as NATS Pub/Sub. The only difference is that you need to setup the stream before publishing or subscribing to it.
