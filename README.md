@@ -17,7 +17,6 @@ This is a [k6](https://go.k6.io/k6) extension using the [xk6](https://github.com
   - [Examples](#examples)
   - [License](#license)
 
-
 ## Build
 
 To build a `k6` binary with this extension, first ensure you have the prerequisites:
@@ -189,7 +188,6 @@ publisher.jetStreamPublishMsg({ topic: 'topic', raw: [ 0, 1, 2, 3 ], headers: { 
 subscription.close()
 ```
 
-
 ### Return values
 
 A `subscription` return value has the following methods:
@@ -212,6 +210,8 @@ A `message` return value has the following attributes:
 You can find some examples in the [examples](examples) folder. To run them, you need to have a NATS server running and then run the following command:
 
 ```shell
+k6 run -e NATS_HOSTNAME=your_nats_server_host examples/binary.js
+k6 run -e NATS_HOSTNAME=your_nats_server_host examples/complex.js
 k6 run -e NATS_HOSTNAME=your_nats_server_host examples/simple.js
 k6 run -e NATS_HOSTNAME=your_nats_server_host examples/withHeaders.js
 ```
@@ -219,7 +219,5 @@ k6 run -e NATS_HOSTNAME=your_nats_server_host examples/withHeaders.js
 Or you can check the [test](test) folder to see how to use the extension.
 
 ## License
-
-The original source code of this project belongs to [ydarias](https://github.com/ydarias) and has not been relased under any license.
 
 The source code of this project is released under the [MIT License](LICENSE).
