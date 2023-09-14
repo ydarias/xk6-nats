@@ -2,45 +2,44 @@ import {check, sleep} from 'k6';
 import {Nats} from 'k6/x/nats';
 
 const natsConfig = {
-    servers: ['nats://localhost:4222'],
+    servers: [`nats://${__ENV.NATS_HOSTNAME}:4222`],
     unsafe: true,
 };
 
-const sub = "foo"
-
 const streamConfig = {
-    // snake case
     name: "mock",
-    subjects: [sub],
-    max_msgs_per_subject: 1,
+    subjects: ["foo"],
+    max_msgs_per_subject: 100,
     discard: 0,
-    storage_type: 1
+    storage: 1
 }
 
-const subscriber = new Nats(natsConfig);
+let counter = 0;
+const responses = {};
+
 const publisher = new Nats(natsConfig);
+publisher.jetStreamSetup(streamConfig);
+sleep(3);
+
+const subscriber = new Nats(natsConfig);
+const subscription = subscriber.jetStreamSubscribe("foo", (msg) => {
+    responses[msg.data] = msg;
+});
 
 export default function () {
-
-    publisher.jetStreamSetup(streamConfig)
-    sleep(3)
-    publisher.jetStreamPublish(sub, "I am a foo")
+    const data = `${++counter}the message`;
+    publisher.jetStreamPublish("foo", data)
     sleep(1)
 
-    // const sub = "foo"
-
-    subscriber.jetStreamSubscribe(sub, (msg) => {
-        check(msg, {
-            'Is expected message': (m) => m.data === "I am a foo",
-            'Is expected stream topic': (m) => m.topic === sub,
-       })
+    const message = responses[data];
+    check(message, {
+        'Is expected message': (m) => m.data === data,
+        'Is expected stream topic': (m) => m.topic === "foo",
     });
-
-    sleep(1)
-
 }
 
 export function teardown() {
+    subscription.close();
     subscriber.close();
     publisher.jetStreamDelete("mock")
     sleep(1)

@@ -6,20 +6,23 @@ const natsConfig = {
     unsafe: true,
 };
 
-let counter = 0;
 const publisher = new Nats(natsConfig);
 const subscriber = new Nats(natsConfig);
-const responses = {};
+const responses = [];
 const subscription = subscriber.subscribe('topic', (msg) => {
-    responses[msg.data] = msg;
+    responses.push(msg);
 });
 
 export default function () {
-    const data = `${++counter}the message`;
-    publisher.publish('topic', data);
+    const data = 'hello world';
+
+    publisher.publishMsg({
+        topic: 'topic',
+	    data: data
+    });
     sleep(1)
 
-    const message = responses[data];
+    const message = responses.pop();
     check(message, {
         'Is expected message': (m) => m.data === data,
         'Is expected topic': (m) => m.topic === 'topic',
@@ -31,3 +34,4 @@ export function teardown() {
     publisher.close();
     subscriber.close();
 }
+
